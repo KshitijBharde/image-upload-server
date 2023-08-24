@@ -1,0 +1,13 @@
+version: '3'
+services:
+  image-upload-server:
+    image: node:18-alpine
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      SERVER_PORT: ${SERVER_PORT}
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"  # Change the host port if needed
+    command: >
+      sh -c "npm ci && npm run build && node dist/main.js"
