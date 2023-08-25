@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   Res,
   UploadedFiles,
   UseInterceptors,
@@ -25,9 +26,9 @@ import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import CatService from "./cat.service"; // Assumed path to service
 import AddNewCatDto from "./dto/add-new-cat.dto";
 import UpdateCatDto from "./dto/update-cat-dto";
-import ListItemDto from "./dto/list-items.dto";
 import CatImage from "./entity/cat-image.entity";
 import Cat from "./entity/cat.entity";
+import CatReturnDto from "./dto/cat-return-dto";
 
 @Controller("cats")
 export class CatController {
@@ -71,10 +72,42 @@ export class CatController {
     });
   }
 
+  private validateAndTransformListItemsQuery(query: any): Record<string, number> {
+    let { limit, offset } = query;
+
+    if (limit) {
+      if (Number.isNaN(Number(limit))) {
+        throw new HttpException(
+          {
+            status: HttpStatus.BAD_REQUEST,
+            error: `Invalid limit`,
+          },
+          HttpStatus.BAD_REQUEST
+        );
+      }
+
+      limit = Number(limit);
+    }
+
+    if (offset) {
+      if (Number.isNaN(Number(offset))) {
+        throw new HttpException(
+          {
+            status: HttpStatus.BAD_REQUEST,
+            error: `Invalid offset`,
+          },
+          HttpStatus.BAD_REQUEST
+        );
+      }
+
+      offset = Number(offset);
+    }
+
+    return {limit, offset};
+  }
+
   @Post("addNewCat")
-  @UseInterceptors(AnyFilesInterceptor())
-  @ApiOperation({ summary: "Add a new cat with images" })
-  @ApiConsumes("multipart/form-data")
+  @ApiOperation({ summary: "Add a new cat" })
   @ApiProduces("application/json")
   @ApiResponse({ status: HttpStatus.OK, description: "Cat added successfully" })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: "Bad request" })
@@ -84,7 +117,6 @@ export class CatController {
       properties: {
         name: { type: "string", example: "Fluffy" },
         age: { type: "number", example: 3 },
-        files: { type: "array", items: { type: "string", format: "binary" } },
       },
       required: ["name"],
     },
@@ -92,12 +124,8 @@ export class CatController {
   })
   addNewCat(
     @Body() addNewCatDto: AddNewCatDto,
-    @UploadedFiles() files?: Array<Express.Multer.File>
-  ): Record<string, string | number | number[]> {
-    if (files) {
-      this.validateFiles(files); // throws exception
-    }
-    return this.catService.addNewCat(addNewCatDto, files);
+  ): CatReturnDto {
+    return this.catService.addNewCat(addNewCatDto);
   }
 
   @Post("addNewCatImages/:catId")
@@ -212,7 +240,7 @@ export class CatController {
   })
   updateCat(
     @Body() updateCatDto: UpdateCatDto
-  ): Record<string, string | number | number[]> {
+  ): CatReturnDto {
     return this.catService.updateCat(updateCatDto);
   }
 
@@ -278,8 +306,9 @@ export class CatController {
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: "Bad request" })
   @ApiParam({ name: "limit", type: Number, required: false })
   @ApiParam({ name: "offset", type: Number, required: false })
-  listCatImages(@Param() params: ListItemDto): CatImage[] {
-    const { limit, offset } = params;
+  listCatImages(@Query() query: any): CatImage[] {
+    const { limit, offset } = this.validateAndTransformListItemsQuery(query);
+
     return this.catService.getListOfCatImages(limit, offset);
   }
 
@@ -294,9 +323,10 @@ export class CatController {
   @ApiParam({ name: "limit", type: Number, required: false })
   @ApiParam({ name: "offset", type: Number, required: false })
   listCats(
-    @Param() params: ListItemDto
-  ): Array<Record<string, string | number | number[]>> {
-    const { limit, offset } = params;
+    @Query() query: any
+  ): Array<CatReturnDto> {
+    const { limit, offset } = this.validateAndTransformListItemsQuery(query);
+
     return this.catService.getListOfCats(limit, offset);
   }
 

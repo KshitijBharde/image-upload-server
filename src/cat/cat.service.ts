@@ -3,6 +3,7 @@ import Cat from './entity/cat.entity';
 import AddNewCatDto from './dto/add-new-cat.dto';
 import CatImage from './entity/cat-image.entity';
 import UpdateCatDto from './dto/update-cat-dto';
+import CatReturnDto from './dto/cat-return-dto';
 
 @Injectable()
 class CatService {
@@ -54,27 +55,16 @@ class CatService {
     return newCatImages.map((image) => image.id);
   }
 
-  addNewCat(
-    addNewCat: AddNewCatDto,
-    files?: Array<Express.Multer.File>,
-  ): Record<string, string | number | number[]> {
+  addNewCat(addNewCat: AddNewCatDto): CatReturnDto {
     const { name, age } = addNewCat;
 
     const catId = this.getNewCatId();
     const newCatInst = new Cat(catId, name, age);
 
-    let catImageIds: number[] = [];
-    if (files) {
-      const newCatImages = this.createNewCatImages(catId, files);
-      catImageIds = this.addNewCatImagesHelper(newCatImages);
-    }
-
-    newCatInst.imageIdsSet = new Set(catImageIds);
-
     this.cats.set(catId, newCatInst);
     this.logger.debug(`added a new cat with id: ${catId}`);
 
-    return { id: catId, name, age, imageIds: catImageIds };
+    return { id: catId, name, age, imageIds: [] };
   }
 
   addCatImages(catId: number, files: Array<Express.Multer.File>): number[] {
@@ -116,6 +106,7 @@ class CatService {
 
     this.cats.delete(catId);
     this.logger.debug(`deleted a cat with id: ${catId}`);
+    return true;
   }
 
   deleteCatImageById(catImageId: number): boolean {
@@ -133,9 +124,10 @@ class CatService {
 
     catInst.imageIdsSet.delete(catImageId);
     this.logger.debug(`deleted a cat image with id: ${catImageId}`);
+    return true;
   }
 
-  updateCat(updateCatDto: UpdateCatDto): Record<string, string | number | number[]> {
+  updateCat(updateCatDto: UpdateCatDto): CatReturnDto {
     const { id, name, age } = updateCatDto;
 
     const catInst = this.cats.get(id);
@@ -200,46 +192,50 @@ class CatService {
     const catImagesArr = Array.from(this.catImages.values());
     const totalImages = catImagesArr.length;
 
-    if (!limit || !offset) {
-      return catImagesArr.map((image) => {
-        image.buffer = undefined;
-        return image;
-      });
+    if (typeof offset !== 'number' || offset < 0) {
+      offset = 0;  // Default offset to 0 if not provided or invalid
     }
 
     if (offset >= totalImages) {
       return [];
     }
 
-    const endIndex = Math.min(offset + limit, totalImages);
-    const catImageRetArray = catImagesArr.slice(offset, endIndex);
+    let imagesRetArray = [];
+    if (typeof limit !== 'number' || limit <= 0) {
+      imagesRetArray = catImagesArr.slice(offset);  // Return all elements from offset if limit is not provided or invalid
+    } else {
+      imagesRetArray = catImagesArr.slice(offset, offset + limit);
+    }
 
-    return catImageRetArray.map((image) => {
+    return imagesRetArray.map((image) => {
       image.buffer = undefined;
       return image;
     });
   }
 
   getListOfCats(
-    limit: number = 0,
-    offset: number = 0,
-  ): Array<Record<string, string | number | number[]>> {
+    limit?: number,
+    offset?: number,
+  ): Array<CatReturnDto> {
     const catsArr = Array.from(this.cats.values());
     const totalCats = catsArr.length;
 
-    if (!limit || !offset) {
-      return catsArr.map((cat) => {
-        const { id, imageIdsSet, name, age } = cat;
-        return { id, name, age, imageIds: Array.from(imageIdsSet) };
-      });
+    if (typeof offset !== 'number' || offset < 0) {
+      offset = 0;  // Default offset to 0 if not provided or invalid
     }
 
     if (offset >= totalCats) {
       return [];
     }
 
-    const endIndex = Math.min(offset + limit, totalCats);
-    const catsRetArray = catsArr.slice(offset, endIndex);
+
+    let catsRetArray = [];
+    if (typeof limit !== 'number' || limit <= 0) {
+      catsRetArray = catsArr.slice(offset);  // Return all elements from offset if limit is not provided or invalid
+    } else {
+      catsRetArray = catsArr.slice(offset, offset + limit);
+    }
+
 
     return catsRetArray.map((cat) => {
       const { id, imageIdsSet, name, age } = cat;

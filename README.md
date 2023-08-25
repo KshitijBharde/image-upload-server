@@ -24,7 +24,7 @@ Welcome to the Cat Image Upload Server repository! This repository hosts a NestJ
 - Node.js (version >= 16.X.X)
 - npm (version >= 9.X.X)
 - Docker (version >= 24.X.X)
-- Docker Compose (version >= 1.29.1)
+- Docker Compose (version =< 1.29.1)
 
 Before running the server, create a `.env` file in the root directory based on the provided `.env.example` file. This file contains configuration options for the server, including the port to use. Modify the values in the `.env` file to match your preferences.
 
@@ -53,6 +53,8 @@ npm run start:dev
 
 The server will be accessible at `http://localhost:[SERVER_PORT]`.
 
+The swagger doc will be accessible at `http://localhost:[SERVER_PORT]/doc`.
+
 ### Docker Deployment
 
 2. Run a container with Docker Compose:
@@ -72,11 +74,10 @@ Endpoint: `POST /cats/addNewCat`
 **Request:**
 
 - Headers:
-  - Content-Type: multipart/form-data
+  - Content-Type: application/json
 - Body:
   - name: string (required)
   - age: number
-  - files: array of image files
 
 **Response:**
 
@@ -137,7 +138,7 @@ Endpoint: `PUT /cats/updateCat`
 
 - Body:
   - id: number (required)
-  - name: string
+  - name: string (required)
   - age: number
 
 **Response:**
@@ -205,3 +206,4 @@ Endpoint: `GET /cats/downloadCatImageById/:catImageId`
 **Response:**
 
 - Image download response
+```
